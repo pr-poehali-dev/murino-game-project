@@ -5,6 +5,7 @@ import Icon from '@/components/ui/icon';
 import { MenuSection, Skin, GameMode, OnlineRoom, GAME_MODES, RARITY_COLORS, RARITY_TEXT } from './GameData';
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
+import CatchFogGame from './CatchFogGame';
 
 interface GameSectionsProps {
   currentSection: MenuSection;
@@ -516,11 +517,12 @@ export default function GameSections({
                 )}
 
                 {currentRoom.status === 'playing' && (
-                  <div className="text-center py-8">
-                    <Icon name="Gamepad2" size={80} className="mx-auto mb-4 text-primary animate-pulse" />
-                    <p className="text-2xl text-horror mb-2">Игра началась!</p>
-                    <p className="text-muted-foreground">Игровые режимы скоро будут доступны</p>
-                  </div>
+                  <CatchFogGame 
+                    roomId={currentRoom.id}
+                    playerName={playerName}
+                    players={currentRoom.players}
+                    onLeave={leaveRoom}
+                  />
                 )}
               </CardContent>
             </Card>
