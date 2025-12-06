@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "name": "Get available rooms",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "rooms": []
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create room",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "create_room",
+        "player_name": "Тестовый игрок"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "room": {
+          "host": "Тестовый игрок",
+          "status": "waiting"
+        }
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

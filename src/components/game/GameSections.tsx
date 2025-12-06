@@ -2,7 +2,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
-import { MenuSection, Skin, GameMode, GAME_MODES, RARITY_COLORS, RARITY_TEXT } from './GameData';
+import { MenuSection, Skin, GameMode, OnlineRoom, GAME_MODES, RARITY_COLORS, RARITY_TEXT } from './GameData';
+import { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
 
 interface GameSectionsProps {
   currentSection: MenuSection;
@@ -15,6 +17,8 @@ interface GameSectionsProps {
   onPlayGame: (mode: GameMode) => void;
 }
 
+const ONLINE_API = 'https://functions.poehali.dev/ac39491b-c7e4-458d-bd38-2b7911ac5945';
+
 export default function GameSections({
   currentSection,
   onBack,
@@ -25,6 +29,123 @@ export default function GameSections({
   onUpgradeSkin,
   onPlayGame
 }: GameSectionsProps) {
+  const [playerName, setPlayerName] = useState('');
+  const [currentRoom, setCurrentRoom] = useState<OnlineRoom | null>(null);
+  const [availableRooms, setAvailableRooms] = useState<OnlineRoom[]>([]);
+  const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentSection === 'online' && !currentRoom) {
+      loadAvailableRooms();
+    }
+  }, [currentSection]);
+
+  useEffect(() => {
+    if (currentRoom) {
+      const interval = setInterval(() => {
+        refreshRoom();
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [currentRoom]);
+
+  const loadAvailableRooms = async () => {
+    try {
+      const response = await fetch(ONLINE_API);
+      const data = await response.json();
+      if (data.success) {
+        setAvailableRooms(data.rooms);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки комнат:', error);
+    }
+  };
+
+  const createRoom = async () => {
+    if (!playerName.trim()) return;
+    setLoading(true);
+    try {
+      const response = await fetch(ONLINE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_room',
+          player_name: playerName
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCurrentRoom(data.room);
+      }
+    } catch (error) {
+      console.error('Ошибка создания комнаты:', error);
+    }
+    setLoading(false);
+  };
+
+  const joinRoom = async (roomId: string) => {
+    if (!playerName.trim()) return;
+    setLoading(true);
+    try {
+      const response = await fetch(ONLINE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'join_room',
+          room_id: roomId,
+          player_name: playerName
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCurrentRoom(data.room);
+      }
+    } catch (error) {
+      console.error('Ошибка подключения к комнате:', error);
+    }
+    setLoading(false);
+  };
+
+  const toggleReady = async () => {
+    if (!currentRoom) return;
+    const newReady = !isReady;
+    setIsReady(newReady);
+    try {
+      await fetch(ONLINE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_ready',
+          room_id: currentRoom.id,
+          player_name: playerName,
+          ready: newReady
+        })
+      });
+    } catch (error) {
+      console.error('Ошибка обновления статуса:', error);
+    }
+  };
+
+  const refreshRoom = async () => {
+    if (!currentRoom) return;
+    try {
+      const response = await fetch(`${ONLINE_API}?room_id=${currentRoom.id}`);
+      const data = await response.json();
+      if (data.success) {
+        setCurrentRoom(data.room);
+      }
+    } catch (error) {
+      console.error('Ошибка обновления комнаты:', error);
+    }
+  };
+
+  const leaveRoom = () => {
+    setCurrentRoom(null);
+    setIsReady(false);
+    loadAvailableRooms();
+  };
+
   if (currentSection === 'main') return null;
 
   return (
@@ -273,6 +394,137 @@ export default function GameSections({
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {currentSection === 'online' && (
+        <div className="min-h-screen p-8 animate-fade-in">
+          <Button
+            onClick={onBack}
+            variant="outline"
+            className="mb-6 border-primary/50"
+          >
+            <Icon name="ArrowLeft" className="mr-2" />
+            Назад
+          </Button>
+
+          <h2 className="text-5xl mb-8 text-primary text-horror">Онлайн режим</h2>
+
+          {!currentRoom ? (
+            <div className="max-w-2xl space-y-6">
+              <Card className="bg-card border-primary/30 glow-red">
+                <CardContent className="p-6">
+                  <h3 className="text-2xl mb-4 text-horror">Ваше имя</h3>
+                  <Input
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="Введите имя игрока"
+                    className="mb-4 bg-background border-primary/30"
+                  />
+                  <Button
+                    onClick={createRoom}
+                    disabled={loading || !playerName.trim()}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <Icon name="Plus" className="mr-2" />
+                    Создать комнату
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card border-primary/30 glow-red">
+                <CardContent className="p-6">
+                  <h3 className="text-2xl mb-4 text-horror">Доступные комнаты</h3>
+                  {availableRooms.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      Нет доступных комнат. Создайте свою!
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {availableRooms.map((room) => (
+                        <Card key={room.id} className="bg-background/50 border-primary/20">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-bold text-horror">Комната {room.id}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Хост: {room.host} | Игроки: {room.players.length}/{room.max_players}
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => joinRoom(room.id)}
+                                disabled={loading || !playerName.trim()}
+                                size="sm"
+                                className="bg-primary hover:bg-primary/90"
+                              >
+                                Подключиться
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card className="max-w-2xl bg-card border-primary/30 glow-red">
+              <CardContent className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-2xl mb-2 text-horror">Комната {currentRoom.id}</h3>
+                  <Badge className="bg-primary">Хост: {currentRoom.host}</Badge>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  <h4 className="text-xl text-horror">Игроки:</h4>
+                  {currentRoom.players.map((player, idx) => (
+                    <Card key={idx} className="bg-background/50 border-primary/20">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-bold">{player.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Очки: {player.score}
+                            </p>
+                          </div>
+                          <Badge className={player.ready ? 'bg-green-500' : 'bg-gray-500'}>
+                            {player.ready ? 'Готов' : 'Не готов'}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {currentRoom.status === 'waiting' && (
+                  <div className="space-y-3">
+                    <Button
+                      onClick={toggleReady}
+                      className={`w-full ${isReady ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
+                    >
+                      {isReady ? 'Отменить готовность' : 'Готов'}
+                    </Button>
+                    <Button
+                      onClick={leaveRoom}
+                      variant="outline"
+                      className="w-full border-primary/50"
+                    >
+                      Покинуть комнату
+                    </Button>
+                  </div>
+                )}
+
+                {currentRoom.status === 'playing' && (
+                  <div className="text-center py-8">
+                    <Icon name="Gamepad2" size={80} className="mx-auto mb-4 text-primary animate-pulse" />
+                    <p className="text-2xl text-horror mb-2">Игра началась!</p>
+                    <p className="text-muted-foreground">Игровые режимы скоро будут доступны</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </>

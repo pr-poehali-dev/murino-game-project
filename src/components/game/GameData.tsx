@@ -24,7 +24,20 @@ export interface GameMode {
   description: string;
 }
 
-export type MenuSection = 'main' | 'play' | 'inventory' | 'shop' | 'settings' | 'leaderboard' | 'about';
+export type MenuSection = 'main' | 'play' | 'inventory' | 'shop' | 'settings' | 'leaderboard' | 'about' | 'online';
+
+export interface OnlineRoom {
+  id: string;
+  host: string;
+  players: {
+    name: string;
+    ready: boolean;
+    score: number;
+  }[];
+  status: 'waiting' | 'playing' | 'finished';
+  created_at: string;
+  max_players: number;
+}
 
 export const SKINS: Omit<Skin, 'level' | 'health' | 'power'>[] = [
   {

@@ -19,6 +19,7 @@ export default function MainMenu({ onSelectSection }: MainMenuProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl w-full">
         {[
           { id: 'play', icon: 'Gamepad2', label: 'Играть' },
+          { id: 'online', icon: 'Users', label: 'Онлайн' },
           { id: 'inventory', icon: 'Package', label: 'Инвентарь' },
           { id: 'shop', icon: 'ShoppingCart', label: 'Магазин' },
           { id: 'settings', icon: 'Settings', label: 'Настройки' },
